@@ -9,8 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { deletePoll } from "@/app/lib/actions/poll-actions";
-import { createClient } from "@/lib/supabase/client";
+import { adminDeletePoll, adminGetAllPolls } from "@/app/lib/actions/admin-actions";
+import { useAuth } from "@/app/lib/context/auth-context";
+import { useRouter } from "next/navigation";
 
 interface Poll {
   id: string;
@@ -20,22 +21,41 @@ interface Poll {
   options: string[];
 }
 
+// Define admin user IDs (in a real app, this would be in a database or environment variable)
+const ADMIN_USER_IDS = [
+  // Add actual admin user IDs here
+  // For demo purposes, this list is empty - no one has admin access
+];
+
 export default function AdminPage() {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [authorized, setAuthorized] = useState(false);
+  const { user } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
+    // Check if user is authorized to access admin panel
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    const isAdmin = ADMIN_USER_IDS.includes(user.id);
+    if (!isAdmin) {
+      router.push('/polls'); // Redirect to regular dashboard
+      return;
+    }
+
+    setAuthorized(true);
     fetchAllPolls();
-  }, []);
+  }, [user, router]);
 
   const fetchAllPolls = async () => {
-    const supabase = createClient();
-
-    const { data, error } = await supabase
-      .from("polls")
-      .select("*")
-      .order("created_at", { ascending: false });
+    if (!authorized) return;
+    
+    const { polls: data, error } = await adminGetAllPolls();
 
     if (!error && data) {
       setPolls(data);
@@ -45,14 +65,21 @@ export default function AdminPage() {
 
   const handleDelete = async (pollId: string) => {
     setDeleteLoading(pollId);
-    const result = await deletePoll(pollId);
+    const result = await adminDeletePoll(pollId);
 
     if (!result.error) {
       setPolls(polls.filter((poll) => poll.id !== pollId));
+    } else {
+      // Handle error - could show a toast notification
+      console.error('Failed to delete poll:', result.error);
     }
 
     setDeleteLoading(null);
   };
+
+  if (!user || !authorized) {
+    return <div className="p-6">Checking authorization...</div>;
+  }
 
   if (loading) {
     return <div className="p-6">Loading all polls...</div>;
