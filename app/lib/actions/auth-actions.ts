@@ -2,61 +2,105 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { LoginFormData, RegisterFormData } from '../types';
+import { validateLogin, validateRegister } from '@/lib/validation';
+import { checkRateLimit, sanitizeError } from '@/lib/security';
 
 export async function login(data: LoginFormData) {
-  const supabase = await createClient();
+  try {
+    // Rate limiting check
+    if (!checkRateLimit(`login_${data.email}`, 5, 300000)) { // 5 attempts per 5 minutes
+      return { error: "Too many login attempts. Please try again later." };
+    }
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email: data.email,
-    password: data.password,
-  });
+    // Input validation
+    const validation = validateLogin(data);
+    if (!validation.isValid) {
+      return { error: validation.error };
+    }
 
-  if (error) {
-    return { error: error.message };
+    const supabase = await createClient();
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: data.email.trim().toLowerCase(),
+      password: data.password,
+    });
+
+    if (error) {
+      return { error: sanitizeError(error) };
+    }
+
+    // Success: no error
+    return { error: null };
+  } catch (error) {
+    return { error: sanitizeError(error) };
   }
-
-  // Success: no error
-  return { error: null };
 }
 
 export async function register(data: RegisterFormData) {
-  const supabase = await createClient();
+  try {
+    // Rate limiting check
+    if (!checkRateLimit(`register_${data.email}`, 3, 600000)) { // 3 attempts per 10 minutes
+      return { error: "Too many registration attempts. Please try again later." };
+    }
 
-  const { error } = await supabase.auth.signUp({
-    email: data.email,
-    password: data.password,
-    options: {
-      data: {
-        name: data.name,
+    // Input validation
+    const validation = validateRegister(data);
+    if (!validation.isValid) {
+      return { error: validation.error };
+    }
+
+    const supabase = await createClient();
+
+    const { error } = await supabase.auth.signUp({
+      email: data.email.trim().toLowerCase(),
+      password: data.password,
+      options: {
+        data: {
+          name: data.name.trim(),
+        },
       },
-    },
-  });
+    });
 
-  if (error) {
-    return { error: error.message };
+    if (error) {
+      return { error: sanitizeError(error) };
+    }
+
+    // Success: no error
+    return { error: null };
+  } catch (error) {
+    return { error: sanitizeError(error) };
   }
-
-  // Success: no error
-  return { error: null };
 }
 
 export async function logout() {
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signOut();
-  if (error) {
-    return { error: error.message };
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      return { error: sanitizeError(error) };
+    }
+    return { error: null };
+  } catch (error) {
+    return { error: sanitizeError(error) };
   }
-  return { error: null };
 }
 
 export async function getCurrentUser() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  return data.user;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    return data.user;
+  } catch (error) {
+    return null;
+  }
 }
 
 export async function getSession() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getSession();
-  return data.session;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getSession();
+    return data.session;
+  } catch (error) {
+    return null;
+  }
 }
