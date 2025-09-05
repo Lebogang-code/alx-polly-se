@@ -9,9 +9,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+<<<<<<< HEAD
 import { adminDeletePoll, adminGetAllPolls } from "@/app/lib/actions/admin-actions";
 import { useAuth } from "@/app/lib/context/auth-context";
 import { useRouter } from "next/navigation";
+=======
+import { getAllPolls, adminDeletePoll } from "@/app/lib/actions/poll-actions";
+import { useAuth } from "@/app/lib/context/auth-context";
+>>>>>>> 63ecfb34a19d38a5f2d32ffc33bafb1a27bc750c
 
 interface Poll {
   id: string;
@@ -31,9 +36,14 @@ export default function AdminPage() {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+<<<<<<< HEAD
   const [authorized, setAuthorized] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
+=======
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+>>>>>>> 63ecfb34a19d38a5f2d32ffc33bafb1a27bc750c
 
   useEffect(() => {
     // Check if user is authorized to access admin panel
@@ -53,12 +63,24 @@ export default function AdminPage() {
   }, [user, router]);
 
   const fetchAllPolls = async () => {
+<<<<<<< HEAD
     if (!authorized) return;
     
     const { polls: data, error } = await adminGetAllPolls();
 
     if (!error && data) {
       setPolls(data);
+=======
+    setLoading(true);
+    setError(null);
+    
+    const result = await getAllPolls();
+    
+    if (result.error) {
+      setError(result.error);
+    } else {
+      setPolls(result.polls);
+>>>>>>> 63ecfb34a19d38a5f2d32ffc33bafb1a27bc750c
     }
     setLoading(false);
   };
@@ -70,19 +92,41 @@ export default function AdminPage() {
     if (!result.error) {
       setPolls(polls.filter((poll) => poll.id !== pollId));
     } else {
+<<<<<<< HEAD
       // Handle error - could show a toast notification
       console.error('Failed to delete poll:', result.error);
+=======
+      setError(result.error);
+>>>>>>> 63ecfb34a19d38a5f2d32ffc33bafb1a27bc750c
     }
 
     setDeleteLoading(null);
   };
 
+<<<<<<< HEAD
   if (!user || !authorized) {
     return <div className="p-6">Checking authorization...</div>;
   }
+=======
+  // Check if user is admin
+  const isAdmin = user && process.env.NEXT_PUBLIC_ADMIN_EMAIL?.split(',').includes(user.email);
+>>>>>>> 63ecfb34a19d38a5f2d32ffc33bafb1a27bc750c
 
   if (loading) {
     return <div className="p-6">Loading all polls...</div>;
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="p-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
+          <p className="text-gray-600 mt-2">
+            You do not have permission to access the admin panel.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -93,6 +137,12 @@ export default function AdminPage() {
           View and manage all polls in the system.
         </p>
       </div>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
 
       <div className="grid gap-4">
         {polls.map((poll) => (
